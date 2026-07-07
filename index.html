@@ -327,12 +327,16 @@ async function syncAbsencesFromGAS(){
     return;
   }
   setSaveIndicator(true,'同期中...');
-  const result=await gasRequest({action:'getAbsences'});
+  const result=await gasRequest({action:'getAll'});
   if(!result||result.error){setSaveIndicator(false,'同期失敗');return;}
-  // GASのデータをabsencesに反映（マージ）
+  // 休みをマージ
   Object.entries(result.absences||{}).forEach(([dk,names])=>{
     if(!absences[dk]) absences[dk]=new Set();
     names.forEach(n=>absences[dk].add(n));
+  });
+  // 担当変更を反映
+  Object.entries(result.overrides||{}).forEach(([k,members])=>{
+    overrides[k]=new Set(members);
   });
   saveToLS();
   renderAll();
@@ -341,9 +345,13 @@ async function syncAbsencesFromGAS(){
 
 async function pushAbsenceToGAS(daykey, name, absent){
   await gasRequest({action:'setAbsence', daykey, name, absent:String(absent)});
-  // 少し待ってから再同期
   clearTimeout(syncTimer);
   syncTimer=setTimeout(()=>syncAbsencesFromGAS(), 1000);
+}
+
+async function pushOverrideToGAS(key, members){
+  const membersStr=[...members].join(',');
+  await gasRequest({action:'setOverride', key, members:membersStr});
 }
 
 // ===== 名前選択・管理者ログイン =====
@@ -524,6 +532,7 @@ function toggleAssign(daykey,period,tidx,name,ni){
   if(!overrides[k]){const tasks=period==='am'?BASE_AM:BASE_PM;overrides[k]=new Set(getBaseStaff(tasks[tidx],ni,period));}
   if(overrides[k].has(name))overrides[k].delete(name);else overrides[k].add(name);
   renderAll();saveToLS();
+  pushOverrideToGAS(k,overrides[k]);
 }
 function toggleAbsence(daykey,ni,name){
   // 自分の名前か管理者のみ変更可能
@@ -662,6 +671,7 @@ function applyCellModal(){
   closeModal();
   document.querySelector('#modal-bg .btn.primary').onclick=applySubstitutes;
   renderAll();saveToLS();
+  pushOverrideToGAS(k,overrides[k]);
 }
 
 // 画像用HTML（文字を大きく・色を濃く）
