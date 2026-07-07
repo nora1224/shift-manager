@@ -278,7 +278,7 @@ function loadFromLS(){
     const raw=localStorage.getItem(LS_KEY);
     if(!raw){setSaveIndicator(true,'準備完了');return;}
     const data=JSON.parse(raw);
-    weekIdx=data.weekIdx||0;
+    // weekIdxは常に今週を使う（保存値は無視）
     absences=Object.fromEntries(Object.entries(data.absences||{}).map(([k,v])=>[k,new Set(v)]));
     overrides=Object.fromEntries(Object.entries(data.overrides||{}).map(([k,v])=>[k,new Set(v)]));
     setSaveIndicator(true,'読み込み完了');
@@ -330,9 +330,10 @@ async function syncAbsencesFromGAS(){
   setSaveIndicator(true,'同期中...');
   const result=await gasRequest({action:'getAbsences'});
   if(!result||result.error){setSaveIndicator(false,'同期失敗');return;}
-  // GASのデータをabsencesに反映
+  // GASのデータをabsencesに反映（マージ）
   Object.entries(result.absences||{}).forEach(([dk,names])=>{
-    absences[dk]=new Set(names);
+    if(!absences[dk]) absences[dk]=new Set();
+    names.forEach(n=>absences[dk].add(n));
   });
   saveToLS();
   renderAll();
@@ -477,6 +478,7 @@ function confirmReset(){
 // デフォルト休み（曜日ベース）ni: 0=月,1=火,2=水,3=木,4=金,5=土,6=日
 const DEFAULT_ABSENCES = {
   '瀬戸':    [1],       // 火
+  'セン':    [5，6],    // 土・日
   '岩田':    [4, 5],    // 金・土
   'ガー':    [2, 3],    // 水・木
   'タム':    [0, 1],    // 月・火
@@ -973,15 +975,19 @@ const firstDayOfWeek = getWeekDays(weekIdx)[0];
 currentYear  = firstDayOfWeek.getFullYear();
 currentMonth = firstDayOfWeek.getMonth();
 
-// デフォルト休みを適用（今週・来週・再来週分）
-for(let i=0;i<4;i++) applyDefaultAbsences(weekIdx+i);
+// デフォルト休みを広めに適用（過去4週〜未来8週）
+for(let i=-4;i<12;i++) applyDefaultAbsences(weekIdx+i);
 saveToLS();
 
 renderMonth();
 renderCalendar();
 
 if(GAS_URL && GAS_URL !== 'YOUR_GAS_URL_HERE'){
-  syncAbsencesFromGAS();
+  // GAS同期後にもデフォルト休みを再適用
+  syncAbsencesFromGAS().then(()=>{
+    for(let i=-4;i<12;i++) applyDefaultAbsences(weekIdx+i);
+    renderAll();
+  });
 }
 
 </script>
