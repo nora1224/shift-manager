@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>シフト管理</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic',sans-serif;background:#f5f5f3;color:#1a1a1a;padding:1.5rem}
+h2{font-size:18px;font-weight:500}
+.week-nav button{background:transparent;border:1px solid #ccc;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:13px;color:#1a1a1a}
+.week-nav button:hover{background:#eee}
+.week-nav span{font-size:14px;color:#666;min-width:140px;text-align:center;display:inline-block}
+.btn{padding:6px 14px;border-radius:8px;cursor:pointer;font-size:13px;border:1px solid #ccc;background:transparent;color:#1a1a1a}
+.btn:hover{background:#eee}
+.btn.primary{background:#1a1a1a;color:#fff;border-color:transparent}
+.btn.img-btn{background:#185FA5;color:#fff;border-color:transparent}
+.btn.img-btn:hover{background:#0C447C}
+.btn.reset-btn{background:transparent;border-color:#E24B4A;color:#E24B4A;font-size:12px;padding:4px 10px}
+.btn.reset-btn:hover{background:#FCEBEB}
+.save-indicator{font-size:11px;color:#888;display:flex;align-items:center;gap:4px}
+.save-dot{width:7px;height:7px;border-radius:50%;background:#ccc;display:inline-block}
+.save-dot.saved{background:#639922}
+
+.main-tab{padding:10px 20px;font-size:14px;font-weight:500;cursor:pointer;border:none;background:transparent;color:#888;border-bottom:3px solid transparent;margin-bottom:-2px}
+.main-tab.active{color:#1a1a1a;border-bottom-color:#1a1a1a;font-weight:600}
+.main-tab:hover{color:#1a1a1a}
+.month-week{margin-bottom:1.25rem}
+.month-week-label{font-size:12px;font-weight:600;color:#666;background:#f0ede8;border-radius:6px;padding:4px 10px;display:inline-block;margin-bottom:8px}
+.absence-area{background:#f0ede8;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1.5rem}
+.absence-grid-wrap{overflow-x:auto;margin-top:.75rem}
+.absence-grid{display:grid;grid-template-columns:180px repeat(7,minmax(85px,1fr));gap:1px;min-width:820px}
+.absence-spacer{background:transparent}
+.absence-day{background:#fff;border:0.5px solid #e0e0e0;border-radius:8px;padding:6px}
+.absence-day.today{border-color:#378ADD;border-width:1.5px}
+.absence-day.weekend{background:#f8f7f4}
+.ab-day-label{font-size:10px;color:#888}
+.ab-day-date{font-size:13px;font-weight:500;margin-bottom:4px}
+.ab-member{display:flex;align-items:center;gap:4px;margin-bottom:2px;cursor:pointer}
+.ab-member input{width:12px;height:12px;cursor:pointer;accent-color:#E24B4A}
+.ab-name{font-size:11px;line-height:1.3}
+.ab-name.off{color:#E24B4A;text-decoration:line-through}
+.seto-row{border-top:1px solid #e0e0e0;margin-top:3px;padding-top:3px}
+.seto-name{color:#BA7517!important}
+
+.cal-area{margin-top:.5rem}
+.period-tabs{display:flex;gap:6px}
+.ptab{padding:4px 12px;font-size:12px;border-radius:8px;cursor:pointer;border:1px solid #ccc;background:transparent;color:#666}
+.ptab.active{background:#1a1a1a;color:#fff;border-color:transparent}
+.cal-wrap{overflow-x:auto;margin-top:.75rem}
+.cal-grid{display:grid;grid-template-columns:200px repeat(7,minmax(100px,1fr));gap:1px;background:#bbb;border:1px solid #bbb;border-radius:12px;overflow:hidden;min-width:900px}
+.cc{background:#fff;padding:6px 5px;min-height:36px}
+.cc.head{background:#e8e5e0;font-size:13px;font-weight:700;color:#222;text-align:center;padding:8px 4px}
+.cc.head.tcol{color:#185FA5;font-weight:700}
+.cc.wknd{background:#f5f2ed}
+.cc.tlabel{font-size:13px;color:#222;font-weight:600;padding:7px 10px;display:flex;align-items:center;line-height:1.4}
+.cc.tlabel.hl{color:#4A2C00;font-weight:700;background:#FFF8E1}
+.chip{display:inline-flex;font-size:13px;font-weight:700;border-radius:4px;padding:3px 8px;margin:2px;cursor:pointer;user-select:none;border:1px solid transparent}
+.chip.on{background:#C2DCF5;color:#082E5A}
+.chip.off-chip{background:transparent;color:#bbb;text-decoration:line-through;border-color:#e0e0e0}
+.chip.abs{background:#FCEBEB;color:#A32D2D;text-decoration:line-through;cursor:default}
+.period-section-label{font-size:14px;font-weight:700;color:#333;background:#e0dbd4;border-radius:8px;padding:6px 14px;display:inline-block;margin:1rem 0 .5rem}
+
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.35);display:none;align-items:flex-start;justify-content:center;z-index:200;padding-top:60px}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:12px;border:1px solid #e0e0e0;padding:1.25rem;width:380px;max-width:96vw;max-height:80vh;overflow-y:auto;box-shadow:0 4px 24px rgba(0,0,0,0.12)}
+.modal h3{font-size:15px;font-weight:500;margin-bottom:.75rem}
+.modal-task{margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px solid #e0e0e0}
+.modal-task:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+.modal-task-name{font-size:12px;color:#555;margin-bottom:6px}
+.modal-task-name.hl{color:#1a1a1a;font-weight:500}
+.modal-chips{display:flex;flex-wrap:wrap;gap:4px}
+.mchip{font-size:12px;padding:4px 10px;border-radius:8px;cursor:pointer;border:1px solid #ccc;background:transparent;color:#1a1a1a}
+.mchip:hover{background:#f0f0f0}
+.mchip.sel{background:#E6F1FB;color:#185FA5;border-color:transparent}
+.mchip.abs-m{background:#FCEBEB;color:#A32D2D;border-color:transparent;cursor:default;text-decoration:line-through}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:1rem}
+
+.loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,0.8);display:none;align-items:center;justify-content:center;z-index:300;font-size:15px;color:#666}
+.loading-overlay.show{display:flex}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- ヘッダー -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
+    <div style="display:flex;align-items:center;gap:12px">
+      <h2>シフト管理</h2>
+      <div class="save-indicator"><span class="save-dot" id="save-dot"></span><span id="save-text">読み込み中...</span></div>
+      <span id="admin-badge" style="display:none;font-size:11px;background:#639922;color:#fff;border-radius:4px;padding:2px 8px;font-weight:600">管理者</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #ccc;border-radius:8px;padding:4px 10px">
+        <span style="font-size:12px;color:#888">ログイン：</span>
+        <span id="my-name-label" style="font-size:13px;font-weight:600;color:#1a1a1a;cursor:pointer" onclick="showNameSelector()">未選択</span>
+        <button onclick="showNameSelector()" style="background:transparent;border:none;cursor:pointer;font-size:11px;color:#185FA5;padding:0">変更</button>
+      </div>
+      <button id="admin-login-btn" class="btn" style="display:none;background:#639922;color:#fff;border-color:transparent;font-size:12px;padding:4px 10px" onclick="promptAdminLogin()">🔑 管理者ログイン</button>
+      <button class="btn" style="background:#185FA5;color:#fff;border-color:transparent" onclick="syncAbsencesFromGAS()">🔄 同期</button>
+      <button class="btn img-btn" onclick="exportImage()">📷 画像で保存</button>
+      <button class="btn" style="background:#639922;color:#fff;border-color:transparent" onclick="openSaveTemplateModal()">💾 テンプレート保存</button>
+      <button class="btn" style="background:#8B5E00;color:#fff;border-color:transparent" onclick="openApplyTemplateModal()">📋 テンプレート適用</button>
+      <button class="btn reset-btn" onclick="confirmReset()">データ消去</button>
+    </div>
+  </div>
+
+  <!-- メインタブ -->
+  <div style="display:flex;gap:0;margin-bottom:1.25rem;border-bottom:2px solid #e0e0e0">
+    <button class="main-tab active" id="main-tab-absence" onclick="switchMainTab('absence',this)">📅 休み入力</button>
+    <button class="main-tab" id="main-tab-shift" onclick="switchMainTab('shift',this)">📋 シフト表</button>
+  </div>
+
+  <!-- 休み入力タブ（月単位） -->
+  <div id="panel-absence">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
+      <div style="font-size:14px;font-weight:500;color:#1a1a1a" id="month-label"></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="week-nav" style="border:1px solid #ccc;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:13px;background:transparent" onclick="changeMonth(-1)">◀</button>
+        <button class="week-nav" style="border:1px solid #ccc;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:13px;background:transparent" onclick="changeMonth(1)">▶</button>
+      </div>
+    </div>
+    <div style="font-size:12px;color:#888;margin-bottom:10px">自分の名前のチェックボックスのみ変更できます</div>
+    <div id="month-grid"></div>
+  </div>
+
+  <!-- シフト表タブ -->
+  <div id="panel-shift" style="display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
+      <div style="font-size:14px;font-weight:500">週間担当カレンダー</div>
+      <div class="week-nav" style="display:flex;align-items:center;gap:8px">
+        <button onclick="changeWeek(-1)">◀</button>
+        <span id="week-label"></span>
+        <button onclick="changeWeek(1)">▶</button>
+      </div>
+    </div>
+    <div class="period-section-label">午前（〜11時）</div>
+    <div class="cal-wrap"><div class="cal-grid" id="cal-grid-am"></div></div>
+    <div class="period-section-label">夕方（16〜18時）</div>
+    <div class="cal-wrap"><div class="cal-grid" id="cal-grid-pm"></div></div>
+  </div>
+</div>
+
+<div id="export-area" style="position:fixed;left:-9999px;top:0;width:1600px;visibility:hidden"></div>
+
+<div class="modal-bg" id="modal-bg">
+  <div class="modal">
+    <h3 id="modal-title"></h3>
+    <div id="modal-body"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">キャンセル</button>
+      <button class="btn primary" onclick="applySubstitutes()">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loading-overlay">画像を生成中...</div>
+
+<!-- 名前選択モーダル -->
+<div class="modal-bg" id="name-modal-bg">
+  <div class="modal">
+    <h3>あなたの名前を選択してください</h3>
+    <p style="font-size:12px;color:#888;margin-bottom:12px">自分の名前を選ぶと休みの入力ができます</p>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1rem">
+      <!-- メンバー -->
+      <button class="mchip" onclick="selectMyName('小島')">小島</button>
+      <button class="mchip" onclick="selectMyName('嶋田')">嶋田</button>
+      <button class="mchip" onclick="selectMyName('太田')">太田</button>
+      <button class="mchip" onclick="selectMyName('ガー')">ガー</button>
+      <button class="mchip" onclick="selectMyName('タム')">タム</button>
+      <button class="mchip" onclick="selectMyName('セン')">セン</button>
+      <button class="mchip" onclick="selectMyName('岩田')">岩田</button>
+      <button class="mchip" onclick="selectMyName('本部担当者')">本部担当者</button>
+      <button class="mchip" style="color:#BA7517;border-color:#BA7517" onclick="selectMyName('瀬戸')">瀬戸</button>
+    </div>
+  </div>
+</div>
+
+<!-- テンプレート保存モーダル -->
+<div class="modal-bg" id="tmpl-save-bg">
+  <div class="modal">
+    <h3>テンプレートとして保存</h3>
+    <p style="font-size:12px;color:#888;margin-bottom:12px">現在の週（<span id="tmpl-save-week"></span>）の担当設定を保存します</p>
+    <input id="tmpl-name-input" type="text" placeholder="テンプレート名（例：ガータム休み）"
+      style="width:100%;padding:8px 10px;font-size:14px;border:1px solid #ccc;border-radius:8px;margin-bottom:1rem">
+    <div class="modal-actions">
+      <button class="btn" onclick="closeTmplSave()">キャンセル</button>
+      <button class="btn primary" onclick="saveTemplate()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- テンプレート適用モーダル -->
+<div class="modal-bg" id="tmpl-apply-bg">
+  <div class="modal">
+    <h3>テンプレートを適用</h3>
+    <p style="font-size:12px;color:#888;margin-bottom:12px">現在の週（<span id="tmpl-apply-week"></span>）に適用します。休みは変更しません。</p>
+    <div id="tmpl-list" style="display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto;margin-bottom:1rem"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeTmplApply()">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const MEMBERS=['小島','嶋田','太田','ガー','タム','セン','岩田','本部担当者'];
+const SETO='瀬戸';
+const ALL_PEOPLE=[...MEMBERS, SETO];
+const DAYS_JP=['日','月','火','水','木','金','土'];
+const LS_KEY='shift_mgr_v7';
+
+// ★ GASデプロイ後にURLをここに貼り付ける
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxAAg7BAs5EHjpBU-NszqCjdIf6oIss0FuXmJlIV-Jsls15ljjs7TtHe7jKsATqX6VG8w/exec';
+
+const ADMIN_NAME = 'セン'; // 担当者変更が可能な管理者名
+const ADMIN_PASS = 'sakura2026'; // ← センさんのパスワード
+
+let myName = localStorage.getItem('shift_myName') || null;
+let isAdmin = false;
+let syncTimer = null;
+
+const BASE_AM=[
+  {name:'対応者（〜11時）', allMembers:true},
+  {name:'もう1泊関連対応一括', base:{0:['嶋田'],1:['小島'],2:['嶋田'],3:['小島'],4:['嶋田'],5:['本部担当者'],6:['本部担当者']}},
+  {name:'予約コード発送（楽天・Airbnb）', highlight:true, base:{0:['ガー'],1:['嶋田'],2:['タム'],3:['タム'],4:['ガー'],5:['タム'],6:['太田']}},
+  {name:'騒音注意送信（楽天）', base:{0:['ガー'],1:['タム'],2:['タム'],3:['タム'],4:['ガー'],5:['タム'],6:['太田']}},
+  {name:'アップグレード送信', base:{0:['ガー'],1:['タム'],2:['タム'],3:['タム'],4:['ガー'],5:['タム'],6:['タム']}},
+  {name:'Airbnbメッセージ確認・対応', base:{0:['小島','嶋田'],1:['小島','嶋田'],2:['小島','嶋田'],3:['小島','嶋田'],4:['嶋田','ガー'],5:['ガー'],6:['ガー']}},
+  {name:'Booking当日メッセージ確認・対応', base:{0:['小島','嶋田'],1:['小島','嶋田'],2:['小島','嶋田'],3:['小島','嶋田'],4:['嶋田','タム'],5:['ガー','タム'],6:['ガー','タム']}},
+  {name:'カスタマメール確認', base:{0:['小島'],1:['嶋田'],2:['小島'],3:['嶋田'],4:['嶋田'],5:['本部担当者'],6:['本部担当者']}},
+  {name:'SVメール確認・対応', base:{0:['小島','嶋田'],1:['小島','嶋田'],2:['小島','嶋田'],3:['小島','嶋田'],4:['タム','ガー'],5:['ガー','タム'],6:['太田','タム']}},
+  {name:'Booking漏れ確認', highlight:true, linked:'pm', base:{0:['岩田'],1:['岩田'],2:['岩田'],3:['岩田'],4:['タム'],5:['ガー'],6:['岩田']}},
+];
+const BASE_PM=[
+  {name:'対応者（16〜18時）', allMembers:true},
+  {name:'もう1泊リスト送信', base:{0:['岩田'],1:['岩田'],2:['岩田'],3:['岩田'],4:['岩田'],5:['岩田'],6:['岩田']}},
+  {name:'Booking漏れ確認', highlight:true, linked:'am', base:{0:['岩田'],1:['岩田'],2:['岩田'],3:['岩田'],4:['タム'],5:['ガー'],6:['岩田']}},
+  {name:'Airbnbメッセージ確認・対応', base:{0:['岩田'],1:['岩田'],2:['岩田'],3:['岩田'],4:['ガー','タム'],5:['ガー','タム'],6:['岩田']}},
+  {name:'Bookingメッセージ確認・対応', base:{0:['ガー'],1:['タム','岩田'],2:['タム','岩田'],3:['タム','岩田'],4:['ガー','タム'],5:['ガー','タム'],6:['ガー','タム','岩田']}},
+  {name:'カスタマメール確認・対応', base:{0:['岩田'],1:['岩田'],2:['岩田'],3:['岩田'],4:['ガー'],5:['山中'],6:['太田']}},
+  {name:'SVメール確認・対応', base:{0:['ガー','太田'],1:['タム','岩田'],2:['タム','岩田'],3:['タム','岩田'],4:['ガー','タム'],5:['ガー','タム'],6:['ガー','タム']}},
+  {name:'社長直行便確認', base:{0:['ガー'],1:['タム'],2:['タム'],3:['タム'],4:['タム'],5:['タム'],6:['ガー']}},
+  {name:'当日更新稼働率確認', base:{0:['太田'],1:['太田'],2:['太田'],3:['太田'],4:['ガー'],5:['山中'],6:['太田']}},
+  {name:'SVメール対応漏れ確認（2日前まで）', base:{0:['太田'],1:['太田'],2:['太田'],3:['太田'],4:['ガー'],5:['山中'],6:['太田']}},
+  {name:'全OTA/SVメール 緊急・未対応メッセージ最後確認', base:{0:['太田'],1:['太田'],2:['太田'],3:['太田'],4:['ガー'],5:['山中'],6:['太田']}},
+];
+
+const BASE_MON=new Date(2026,3,6);
+function getMonday(w){const d=new Date(BASE_MON);d.setDate(d.getDate()+w*7);return d;}
+function getWeekDays(w){return Array.from({length:7},(_,i)=>{const d=new Date(getMonday(w));d.setDate(d.getDate()+i);return d;});}
+function getWeekLabel(w){const days=getWeekDays(w);const s=days[0],e=days[6];return `${s.getMonth()+1}/${s.getDate()}〜${e.getMonth()+1}/${e.getDate()}`;}
+function dkey(w,ni){return w*7+ni;}
+const NO_WEEKEND=['小島','嶋田'];
+function isWknd(ni){return ni===5||ni===6;}
+function filterWknd(arr,ni){return isWknd(ni)?arr.filter(m=>!NO_WEEKEND.includes(m)):arr;}
+function getBaseStaff(task,ni,period){
+  if(task.allMembers){
+    if(period==='pm') return MEMBERS.filter(m=>!NO_WEEKEND.includes(m));
+    return filterWknd([...MEMBERS],ni);
+  }
+  return filterWknd(task.base?[...(task.base[ni]||[])]:[], ni);
+}
+
+function saveToLS(){
+  try{
+    const data={
+      weekIdx,
+      absences:Object.fromEntries(Object.entries(absences).map(([k,v])=>[k,[...v]])),
+      overrides:Object.fromEntries(Object.entries(overrides).map(([k,v])=>[k,[...v]]))
+    };
+    localStorage.setItem(LS_KEY,JSON.stringify(data));
+    setSaveIndicator(true);
+  }catch(e){setSaveIndicator(false);}
+}
+function loadFromLS(){
+  try{
+    const raw=localStorage.getItem(LS_KEY);
+    if(!raw){setSaveIndicator(true,'準備完了');return;}
+    const data=JSON.parse(raw);
+    weekIdx=data.weekIdx||0;
+    absences=Object.fromEntries(Object.entries(data.absences||{}).map(([k,v])=>[k,new Set(v)]));
+    overrides=Object.fromEntries(Object.entries(data.overrides||{}).map(([k,v])=>[k,new Set(v)]));
+    setSaveIndicator(true,'読み込み完了');
+  }catch(e){setSaveIndicator(false,'読み込み失敗');}
+}
+function setSaveIndicator(ok,msg){
+  const dot=document.getElementById('save-dot');
+  const txt=document.getElementById('save-text');
+  dot.className='save-dot'+(ok?' saved':'');
+  txt.textContent=msg||(ok?'自動保存済み':'保存エラー');
+}
+
+// ===== GAS同期 =====
+async function gasRequest(params){
+  if(!GAS_URL||GAS_URL==='https://script.google.com/macros/s/AKfycbxAAg7BAs5EHjpBU-NszqCjdIf6oIss0FuXmJlIV-Jsls15ljjs7TtHe7jKsATqX6VG8w/exec') return null;
+  try{
+    const url=GAS_URL+'?'+new URLSearchParams(params);
+    const res=await fetch(url);
+    return await res.json();
+  }catch(e){return null;}
+}
+
+async function syncAbsencesFromGAS(){
+  if(!GAS_URL||GAS_URL==='https://script.google.com/macros/s/AKfycbxAAg7BAs5EHjpBU-NszqCjdIf6oIss0FuXmJlIV-Jsls15ljjs7TtHe7jKsATqX6VG8w/exec'){
+    setSaveIndicator(true,'ローカル保存中');
+    return;
+  }
+  setSaveIndicator(true,'同期中...');
+  const result=await gasRequest({action:'getAbsences'});
+  if(!result||result.error){setSaveIndicator(false,'同期失敗');return;}
+  // GASのデータをabsencesに反映
+  Object.entries(result.absences||{}).forEach(([dk,names])=>{
+    absences[dk]=new Set(names);
+  });
+  saveToLS();
+  renderAll();
+  setSaveIndicator(true,'同期完了');
+}
+
+async function pushAbsenceToGAS(daykey, name, absent){
+  await gasRequest({action:'setAbsence', daykey, name, absent:String(absent)});
+  // 少し待ってから再同期
+  clearTimeout(syncTimer);
+  syncTimer=setTimeout(()=>syncAbsencesFromGAS(), 1000);
+}
+
+// ===== 名前選択・管理者ログイン =====
+function showNameSelector(){
+  document.getElementById('name-modal-bg').className='modal-bg open';
+}
+function selectMyName(name){
+  myName=name;
+  localStorage.setItem('shift_myName',name);
+  document.getElementById('my-name-label').textContent=name;
+  document.getElementById('name-modal-bg').className='modal-bg';
+  // 管理者チェック
+  if(name===ADMIN_NAME){
+    document.getElementById('admin-login-btn').style.display='inline-flex';
+  } else {
+    document.getElementById('admin-login-btn').style.display='none';
+    isAdmin=false;
+    updateAdminUI();
+  }
+}
+function promptAdminLogin(){
+  const pw=prompt('管理者パスワードを入力してください：');
+  if(pw===ADMIN_PASS){
+    isAdmin=true;
+    updateAdminUI();
+    alert('管理者モードになりました。担当者の変更が可能です。');
+  } else {
+    alert('パスワードが違います。');
+  }
+}
+function updateAdminUI(){
+  const badge=document.getElementById('admin-badge');
+  if(isAdmin){
+    badge.style.display='inline-block';
+  } else {
+    badge.style.display='none';
+  }
+}
+
+// ===== テンプレート機能 =====
+const TMPL_KEY='shift_mgr_templates';
+function getTemplates(){try{return JSON.parse(localStorage.getItem(TMPL_KEY)||'[]');}catch{return [];}}
+function saveTemplatesLS(t){localStorage.setItem(TMPL_KEY,JSON.stringify(t));}
+
+function openSaveTemplateModal(){
+  document.getElementById('tmpl-save-week').textContent=getWeekLabel(weekIdx);
+  document.getElementById('tmpl-name-input').value='';
+  document.getElementById('tmpl-save-bg').className='modal-bg open';
+}
+function closeTmplSave(){document.getElementById('tmpl-save-bg').className='modal-bg';}
+function saveTemplate(){
+  const name=document.getElementById('tmpl-name-input').value.trim();
+  if(!name){alert('テンプレート名を入力してください');return;}
+  const tmplOverrides={};
+  for(let ni=0;ni<7;ni++){
+    const daykey=dkey(weekIdx,ni);
+    ['am','pm'].forEach(period=>{
+      const tasks=period==='am'?BASE_AM:BASE_PM;
+      tasks.forEach((_,tidx)=>{
+        const k=`${daykey}_${period}_${tidx}`;
+        if(overrides[k]) tmplOverrides[`${ni}_${period}_${tidx}`]=[...overrides[k]];
+      });
+    });
+  }
+  const tmpls=getTemplates();
+  const existIdx=tmpls.findIndex(t=>t.name===name);
+  if(existIdx>=0){
+    if(!confirm(`「${name}」は既に存在します。上書きしますか？`))return;
+    tmpls[existIdx]={name,overrides:tmplOverrides,savedAt:getWeekLabel(weekIdx)};
+  } else {
+    tmpls.push({name,overrides:tmplOverrides,savedAt:getWeekLabel(weekIdx)});
+  }
+  saveTemplatesLS(tmpls);
+  closeTmplSave();
+  alert(`「${name}」を保存しました！`);
+}
+
+function openApplyTemplateModal(){
+  document.getElementById('tmpl-apply-week').textContent=getWeekLabel(weekIdx);
+  renderTmplList();
+  document.getElementById('tmpl-apply-bg').className='modal-bg open';
+}
+function closeTmplApply(){document.getElementById('tmpl-apply-bg').className='modal-bg';}
+function renderTmplList(){
+  const tmpls=getTemplates();
+  const list=document.getElementById('tmpl-list');
+  if(tmpls.length===0){
+    list.innerHTML='<div style="font-size:13px;color:#aaa;text-align:center;padding:1rem">保存済みテンプレートがありません</div>';
+    return;
+  }
+  list.innerHTML=tmpls.map((t,i)=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;background:#fff">
+      <div>
+        <div style="font-size:14px;font-weight:500;color:#1a1a1a">${t.name}</div>
+        <div style="font-size:11px;color:#888">保存元：${t.savedAt||'不明'}</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn primary" style="font-size:12px;padding:4px 10px" onclick="applyTemplate(${i})">適用</button>
+        <button class="btn reset-btn" style="font-size:12px;padding:4px 10px" onclick="deleteTemplate(${i})">削除</button>
+      </div>
+    </div>`).join('');
+}
+function applyTemplate(idx){
+  const tmpls=getTemplates();const t=tmpls[idx];if(!t)return;
+  if(!confirm(`「${t.name}」を現在の週に適用しますか？\n既存の担当設定は上書きされます（休みはそのまま）。`))return;
+  Object.entries(t.overrides).forEach(([relKey,members])=>{
+    const parts=relKey.split('_');
+    const ni=parseInt(parts[0]);
+    const period=parts[1];
+    const tidx=parseInt(parts[2]);
+    const daykey=dkey(weekIdx,ni);
+    overrides[`${daykey}_${period}_${tidx}`]=new Set(members);
+  });
+  closeTmplApply();renderAll();saveToLS();
+  alert(`「${t.name}」を適用しました！`);
+}
+function deleteTemplate(idx){
+  const tmpls=getTemplates();
+  if(!confirm(`「${tmpls[idx].name}」を削除しますか？`))return;
+  tmpls.splice(idx,1);saveTemplatesLS(tmpls);renderTmplList();
+}
+function confirmReset(){
+  if(confirm('全データを消去してリセットしますか？\nこの操作は取り消せません。')){
+    localStorage.removeItem(LS_KEY);
+    absences={};overrides={};weekIdx=0;
+    document.getElementById('week-label').textContent=getWeekLabel(weekIdx);
+    renderAll();setSaveIndicator(true,'消去しました');
+  }
+}
+
+let weekIdx=0;
+let absences={};
+let overrides={};
+let currentPeriod='am';
+let pendingDaykey=null,pendingName=null,pendingNi=null,pendingSubs={};
+
+function isAbsent(daykey,name){return(absences[daykey]||new Set()).has(name);}
+function getAssigned(daykey,period,tidx,ni){
+  const k=`${daykey}_${period}_${tidx}`;
+  if(overrides[k])return overrides[k];
+  const tasks=period==='am'?BASE_AM:BASE_PM;
+  return new Set(getBaseStaff(tasks[tidx],ni,period));
+}
+function toggleAssign(daykey,period,tidx,name,ni){
+  const k=`${daykey}_${period}_${tidx}`;
+  if(!overrides[k]){const tasks=period==='am'?BASE_AM:BASE_PM;overrides[k]=new Set(getBaseStaff(tasks[tidx],ni,period));}
+  if(overrides[k].has(name))overrides[k].delete(name);else overrides[k].add(name);
+  renderAll();saveToLS();
+}
+function toggleAbsence(daykey,ni,name){
+  // 自分の名前か管理者のみ変更可能
+  if(!isAdmin && myName !== name){
+    alert(`自分（${myName}）の休みのみ変更できます。`);
+    return;
+  }
+  if(!absences[daykey])absences[daykey]=new Set();
+  const wasAbsent=absences[daykey].has(name);
+  if(wasAbsent){
+    absences[daykey].delete(name);
+    saveToLS();
+    pushAbsenceToGAS(daykey,name,false);
+    renderAll();
+    return;
+  }
+  absences[daykey].add(name);
+  const affected=[];
+  ['am','pm'].forEach(period=>{
+    const tasks=period==='am'?BASE_AM:BASE_PM;
+    tasks.forEach((task,tidx)=>{
+      if(task.allMembers)return;
+      const assigned=getAssigned(daykey,period,tidx,ni);
+      if(assigned.has(name))affected.push({period,tidx,task,assigned});
+    });
+  });
+  saveToLS();
+  pushAbsenceToGAS(daykey,name,true);
+  if(affected.length===0){renderAll();return;}
+  if(isAdmin) openSubModal(daykey,ni,name,affected);
+  else renderAll();
+}
+function openSubModal(daykey,ni,name,affected){
+  pendingDaykey=daykey;pendingName=name;pendingNi=ni;pendingSubs={};
+  affected.forEach(({period,tidx,task,assigned})=>{
+    const cur=new Set(assigned);cur.delete(name);
+    pendingSubs[`${period}_${tidx}`]={period,tidx,task,current:cur};
+  });
+  const days=getWeekDays(weekIdx);const d=days[ni];
+  document.getElementById('modal-title').textContent=`${name}（${d.getMonth()+1}/${d.getDate()}）の代替者を選択`;
+  renderModalBody();
+  document.getElementById('modal-bg').className='modal-bg open';
+}
+function renderModalBody(){
+  const daykey=pendingDaykey;
+  let html='';
+  Object.entries(pendingSubs).forEach(([key,{period,tidx,task,current}])=>{
+    const label=period==='am'?'午前':'夕方';
+    html+=`<div class="modal-task">
+      <div class="modal-task-name${task.highlight?' hl':''}">[${label}] ${task.name}</div>
+      <div style="font-size:11px;color:#888;margin-bottom:6px">現担当：${[...current].join('・')||'なし'} ／ 代替者を選択</div>
+      <div class="modal-chips">`;
+    MEMBERS.forEach(m=>{
+      if(m===pendingName)return;
+      const absent=isAbsent(daykey,m);const sel=current.has(m);
+      if(absent)html+=`<span class="mchip abs-m">${m}</span>`;
+      else html+=`<span class="mchip${sel?' sel':''}" onclick="toggleSub('${key}','${m}')">${m}</span>`;
+    });
+    html+=`</div></div>`;
+  });
+  document.getElementById('modal-body').innerHTML=html;
+}
+function toggleSub(key,name){
+  if(!pendingSubs[key])return;
+  const cur=pendingSubs[key].current;
+  if(cur.has(name))cur.delete(name);else cur.add(name);
+  renderModalBody();
+}
+function applySubstitutes(){
+  if(pendingDaykey===null)return;
+  Object.entries(pendingSubs).forEach(([key,{period,tidx,current}])=>{
+    overrides[`${pendingDaykey}_${period}_${tidx}`]=new Set(current);
+  });
+  closeModal();renderAll();saveToLS();
+}
+function closeModal(){
+  document.getElementById('modal-bg').className='modal-bg';
+  pendingDaykey=null;pendingName=null;pendingNi=null;pendingSubs={};
+}
+
+// セルクリックで担当者選択モーダル
+let cellModal={daykey:null,period:null,tidx:null,ni:null,current:null};
+function openCellModal(daykey,period,tidx,ni){
+  cellModal={daykey,period,tidx,ni};
+  cellModal.current=new Set(getAssigned(daykey,period,tidx,ni));
+  const tasks=period==='am'?BASE_AM:BASE_PM;
+  const task=tasks[tidx];
+  const days=getWeekDays(weekIdx);const d=days[ni];
+  document.getElementById('modal-title').textContent=`${d.getMonth()+1}/${d.getDate()} ${task.name}`;
+  const displayMembers=getBaseStaff({allMembers:true},ni,period);
+  let html='<div style="font-size:11px;color:#888;margin-bottom:8px">クリックで担当ON/OFFを切り替え</div><div class="modal-chips">';
+  displayMembers.forEach(m=>{
+    const absent=isAbsent(daykey,m);
+    const sel=cellModal.current.has(m);
+    if(absent) html+=`<span class="mchip abs-m">${m}（休み）</span>`;
+    else html+=`<span class="mchip${sel?' sel':''}" onclick="toggleCellMember('${m}')">${m}</span>`;
+  });
+  html+='</div>';
+  document.getElementById('modal-body').innerHTML=html;
+  document.getElementById('modal-bg').className='modal-bg open';
+  // 保存ボタンをセル用に切り替え
+  document.querySelector('#modal-bg .btn.primary').onclick=applyCellModal;
+}
+function toggleCellMember(name){
+  if(!cellModal.current)return;
+  if(cellModal.current.has(name))cellModal.current.delete(name);
+  else cellModal.current.add(name);
+  // モーダル内チップ更新
+  const displayMembers=getBaseStaff({allMembers:true},cellModal.ni,cellModal.period);
+  const chips=document.querySelectorAll('#modal-body .mchip:not(.abs-m)');
+  let i=0;
+  displayMembers.forEach(m=>{
+    if(isAbsent(cellModal.daykey,m))return;
+    if(chips[i]){chips[i].className='mchip'+(cellModal.current.has(m)?' sel':'');i++;}
+  });
+}
+function applyCellModal(){
+  if(!cellModal.daykey)return;
+  const k=`${cellModal.daykey}_${cellModal.period}_${cellModal.tidx}`;
+  overrides[k]=new Set(cellModal.current);
+
+  // 連動：Booking漏れ確認で担当者が入ったら反対の時間帯を空にする
+  const tasks=cellModal.period==='am'?BASE_AM:BASE_PM;
+  const task=tasks[cellModal.tidx];
+  if(task.linked && cellModal.current.size>0){
+    const otherPeriod=task.linked;
+    const otherTasks=otherPeriod==='am'?BASE_AM:BASE_PM;
+    const otherTidx=otherTasks.findIndex(t=>t.name===task.name);
+    if(otherTidx>=0){
+      const otherKey=`${cellModal.daykey}_${otherPeriod}_${otherTidx}`;
+      overrides[otherKey]=new Set(); // 空にする
+    }
+  }
+
+  closeModal();
+  document.querySelector('#modal-bg .btn.primary').onclick=applySubstitutes;
+  renderAll();saveToLS();
+}
+
+// 画像用HTML（文字を大きく・色を濃く）
+function buildExportCalHTML(period,w){
+  const days=getWeekDays(w);
+  const tasks=period==='am'?BASE_AM:BASE_PM;
+  const COL='grid-template-columns:220px repeat(7,minmax(120px,1fr))';
+  const headBg='#d8d5cf';
+  const wkndBg='#ede9e2';
+  const cellBg='#ffffff';
+  let html=`<div style="display:grid;${COL};gap:1px;background:#999;border:1px solid #999;border-radius:8px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic',sans-serif">`;
+  html+=`<div style="background:${headBg};padding:10px 12px;font-size:16px;font-weight:800;color:#111">業務</div>`;
+  days.forEach((d,ni)=>{
+    const dow=d.getDay();const isWeekend=dow===0||dow===6;
+    const color=dow===0?'#8B0000':dow===6?'#0A3A7A':'#111';
+    html+=`<div style="background:${isWeekend?wkndBg:headBg};padding:10px 6px;font-size:16px;font-weight:800;color:${color};text-align:center;line-height:1.6">${DAYS_JP[dow]}<br>${d.getMonth()+1}/${d.getDate()}</div>`;
+  });
+  tasks.forEach((task,tidx)=>{
+    const labelBg=task.highlight?'#FFF0B3':cellBg;
+    const labelColor=task.highlight?'#4A2C00':'#111';
+    const labelFs=task.allMembers?'15px':'17px';
+    html+=`<div style="background:${labelBg};padding:10px 12px;font-size:${labelFs};font-weight:700;color:${labelColor};display:flex;align-items:center;line-height:1.5;border-top:1px solid #ccc">${task.name}</div>`;
+    days.forEach((d,ni)=>{
+      const daykey=dkey(w,ni);const dow=d.getDay();const isWeekend=dow===0||dow===6;
+      const assigned=getAssigned(daykey,period,tidx,ni);
+      html+=`<div style="background:${isWeekend?wkndBg:cellBg};padding:8px 5px;border-top:1px solid #ccc">`;
+      MEMBERS.filter(m=>assigned.has(m)&&!isAbsent(daykey,m)).forEach(m=>{
+        const isResponder=task.allMembers;
+        const fs=isResponder?'15px':'19px';
+        const pw=isResponder?'4px 9px':'5px 12px';
+        html+=`<span style="display:inline-block;font-size:${fs};font-weight:800;border-radius:5px;padding:${pw};margin:2px 2px;background:#C2DCF5;color:#082E5A">${m}</span>`;
+      });
+      html+=`</div>`;
+    });
+  });
+  html+=`</div>`;
+  return html;
+}
+
+function buildCalHTML(period,w){
+  const days=getWeekDays(w);const today=new Date();
+  const tasks=period==='am'?BASE_AM:BASE_PM;
+  let html='';
+  html+=`<div class="cc head" style="text-align:left;padding-left:8px">業務</div>`;
+  days.forEach((d,ni)=>{
+    const dow=d.getDay();const isToday=d.toDateString()===today.toDateString();const isWeekend=dow===0||dow===6;
+    html+=`<div class="cc head${isToday?' tcol':''}${isWeekend?' wknd':''}">${DAYS_JP[dow]}<br>${d.getMonth()+1}/${d.getDate()}</div>`;
+  });
+  tasks.forEach((task,tidx)=>{
+    html+=`<div class="cc tlabel${task.highlight?' hl':''}">${task.name}</div>`;
+    days.forEach((d,ni)=>{
+      const daykey=dkey(w,ni);const dow=d.getDay();const isWeekend=dow===0||dow===6;
+      const assigned=getAssigned(daykey,period,tidx,ni);
+      const displayMembers=getBaseStaff({allMembers:true},ni,period);
+      const canEditCell = isAdmin;
+      html+=`<div class="cc${isWeekend?' wknd':''}" ${canEditCell?`style="cursor:pointer" onclick="openCellModal(${daykey},'${period}',${tidx},${ni})" title="クリックして担当者を変更"`:'style="cursor:default"'}>`;
+      // ONの人と休み中の人だけ表示
+      let hasChip=false;
+      displayMembers.forEach(m=>{
+        const inA=assigned.has(m);const absent=isAbsent(daykey,m);
+        // 休みの人は表示しない、ONの人だけ表示
+        if(!absent&&inA){
+          html+=`<span class="chip on">${m}</span>`;hasChip=true;
+        }
+      });
+      if(!hasChip) html+=`<span style="font-size:10px;color:#bbb">-</span>`;
+      html+=`</div>`;
+    });
+  });
+  return html;
+}
+
+function renderAbsence(){
+  const days=getWeekDays(weekIdx);const today=new Date();
+  // 180pxのスペーサー（業務名列と揃える）
+  let html='<div class="absence-spacer" style="display:flex;align-items:center;font-size:12px;font-weight:500;color:#888;padding:0 8px">休み入力</div>';
+  days.forEach((d,ni)=>{
+    const daykey=dkey(weekIdx,ni);const dow=d.getDay();
+    const isToday=d.toDateString()===today.toDateString();const isWeekend=dow===0||dow===6;
+    html+=`<div class="absence-day${isToday?' today':''}${isWeekend?' weekend':''}">
+      <div class="ab-day-label">${DAYS_JP[dow]}</div>
+      <div class="ab-day-date">${d.getMonth()+1}/${d.getDate()}</div>`;
+    MEMBERS.forEach(m=>{
+      const off=isAbsent(daykey,m);
+      html+=`<label class="ab-member"><input type="checkbox"${off?' checked':''} onchange="toggleAbsence(${daykey},${ni},'${m}')">
+        <span class="ab-name${off?' off':''}">${m}</span></label>`;
+    });
+    const setoOff=isAbsent(daykey,SETO);
+    html+=`<div class="seto-row"><label class="ab-member"><input type="checkbox"${setoOff?' checked':''} onchange="toggleAbsence(${daykey},${ni},'${SETO}')">
+      <span class="ab-name seto-name${setoOff?' off':''}">${SETO}</span></label></div></div>`;
+  });
+  document.getElementById('absence-grid').innerHTML=html;
+}
+function renderCalendar(){
+  const amEl=document.getElementById('cal-grid-am');
+  const pmEl=document.getElementById('cal-grid-pm');
+  if(amEl) amEl.innerHTML=buildCalHTML('am',weekIdx);
+  if(pmEl) pmEl.innerHTML=buildCalHTML('pm',weekIdx);
+}
+function switchMainTab(tab, el){
+  document.querySelectorAll('.main-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('panel-absence').style.display = tab==='absence' ? 'block' : 'none';
+  document.getElementById('panel-shift').style.display   = tab==='shift'   ? 'block' : 'none';
+  if(tab==='absence') renderMonth();
+  if(tab==='shift') renderCalendar();
+}
+
+// ===== 月単位休み入力 =====
+let currentMonth = new Date().getMonth();
+let currentYear  = new Date().getFullYear();
+
+function changeMonth(dir){
+  currentMonth += dir;
+  if(currentMonth > 11){currentMonth=0; currentYear++;}
+  if(currentMonth < 0){currentMonth=11; currentYear--;}
+  renderMonth();
+}
+
+function renderMonth(){
+  const today = new Date();
+  const label = `${currentYear}年${currentMonth+1}月`;
+  document.getElementById('month-label').textContent = label;
+
+  // その月の全日付を取得
+  const firstDay = new Date(currentYear, currentMonth, 1);
+  const lastDay  = new Date(currentYear, currentMonth+1, 0);
+
+  // 週ごとにグループ化
+  const weeks = [];
+  let week = [];
+  for(let d=new Date(firstDay); d<=lastDay; d.setDate(d.getDate()+1)){
+    week.push(new Date(d));
+    if(d.getDay()===0 || d.getTime()===lastDay.getTime()){
+      weeks.push([...week]);
+      week=[];
+    }
+  }
+
+  let html='';
+  weeks.forEach(wDays=>{
+    const s=wDays[0], e=wDays[wDays.length-1];
+    html+=`<div class="month-week">
+      <div class="month-week-label">${s.getMonth()+1}/${s.getDate()}〜${e.getMonth()+1}/${e.getDate()}</div>
+      <div class="absence-grid-wrap"><div style="display:grid;grid-template-columns:180px repeat(${wDays.length},minmax(85px,1fr));gap:1px;background:#e0e0e0;border:1px solid #e0e0e0;border-radius:10px;overflow:hidden;min-width:400px">`;
+
+    // ヘッダー
+    html+=`<div style="background:#f5f5f3;padding:6px 10px;font-size:12px;font-weight:600;color:#666">メンバー</div>`;
+    wDays.forEach(d=>{
+      const dow=d.getDay();
+      const isToday=d.toDateString()===today.toDateString();
+      const isWeekend=dow===0||dow===6;
+      const dowColor=dow===0?'#A32D2D':dow===6?'#185FA5':'#444';
+      html+=`<div style="background:${isWeekend?'#f8f7f4':'#f5f5f3'};padding:6px 4px;font-size:12px;font-weight:700;color:${isToday?'#185FA5':dowColor};text-align:center;${isToday?'border-bottom:2px solid #185FA5':''}">${DAYS_JP[dow]}<br>${d.getMonth()+1}/${d.getDate()}</div>`;
+    });
+
+    // 各メンバー行
+    const allPeople=[...MEMBERS, SETO];
+    allPeople.forEach(m=>{
+      const isMine = myName===m;
+      const isSeto = m===SETO;
+      const rowBg  = isMine ? '#FFFDE7' : '#fff';
+      const nameFg = isSeto ? '#BA7517' : (isMine ? '#185FA5' : '#333');
+      html+=`<div style="background:${rowBg};padding:6px 10px;font-size:12px;font-weight:${isMine?'700':'500'};color:${nameFg};display:flex;align-items:center;border-top:1px solid #e8e8e8">${m}${isMine?' ✏️':''}</div>`;
+      wDays.forEach(d=>{
+        // daykeyを計算（BASE_MONからの週offset×7+曜日offset）
+        const BASE = new Date(2026,3,6); // 4/6月曜
+        const diffDays = Math.round((d - BASE)/(1000*60*60*24));
+        const w = Math.floor(diffDays/7);
+        const ni= diffDays % 7;
+        const daykey = w*7 + (ni < 0 ? ni+7 : ni);
+        const off = isAbsent(daykey, m);
+        const dow = d.getDay();
+        const isWeekend = dow===0||dow===6;
+        const canEdit = isAdmin || isMine;
+        const cellBg = isWeekend ? '#f8f7f4' : (off ? '#FFEBEB' : '#fff');
+        html+=`<div style="background:${cellBg};border-top:1px solid #e8e8e8;padding:4px;text-align:center">`;
+        if(canEdit){
+          html+=`<input type="checkbox" ${off?'checked':''} onchange="toggleAbsence(${daykey},${ni<0?ni+7:ni},'${m}')"
+            style="width:16px;height:16px;cursor:pointer;accent-color:#E24B4A">`;
+        } else {
+          if(off) html+=`<span style="font-size:11px;color:#E24B4A;font-weight:700">休み</span>`;
+          else    html+=`<span style="font-size:11px;color:#ccc">-</span>`;
+        }
+        html+=`</div>`;
+      });
+    });
+    html+=`</div></div></div>`;
+  });
+
+  document.getElementById('month-grid').innerHTML=html;
+}
+
+function renderAll(){renderMonth();renderCalendar();}
+
+function changeWeek(dir){
+  const n=weekIdx+dir;if(n<0)return;
+  // 次週へ進む場合、前週のデータをコピー（既存データは上書きしない）
+  if(dir===1){
+    const prevW=weekIdx;
+    const nextW=n;
+    // 担当設定のコピー（overrides）
+    for(let ni=0;ni<7;ni++){
+      const prevDk=dkey(prevW,ni);
+      const nextDk=dkey(nextW,ni);
+      ['am','pm'].forEach(period=>{
+        const tasks=period==='am'?BASE_AM:BASE_PM;
+        tasks.forEach((_,tidx)=>{
+          const nextKey=`${nextDk}_${period}_${tidx}`;
+          // 次週にまだデータがない場合のみコピー
+          if(!overrides[nextKey]){
+            const prevKey=`${prevDk}_${period}_${tidx}`;
+            if(overrides[prevKey]){
+              overrides[nextKey]=new Set(overrides[prevKey]);
+            }
+          }
+        });
+      });
+      // 休みのコピー（次週にまだ休みデータがない場合のみ）
+      if(!absences[nextDk]||absences[nextDk].size===0){
+        if(absences[prevDk]&&absences[prevDk].size>0){
+          absences[nextDk]=new Set(absences[prevDk]);
+        }
+      }
+    }
+  }
+  weekIdx=n;
+  document.getElementById('week-label').textContent=getWeekLabel(weekIdx);
+  saveToLS();renderAll();
+}
+function switchPeriod(p,el){
+  currentPeriod=p;
+  document.querySelectorAll('.ptab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');renderCalendar();
+}
+
+async function exportImage(){
+  const overlay=document.getElementById('loading-overlay');
+  overlay.className='loading-overlay show';
+  try{
+    const ea=document.getElementById('export-area');
+    const label=getWeekLabel(weekIdx);
+    const days=getWeekDays(weekIdx);
+
+    // 休みエリアHTML生成（カレンダーと同じ列幅で揃える）
+    function buildExportAbsenceHTML(){
+      let html=`<div style="display:grid;grid-template-columns:220px repeat(7,minmax(120px,1fr));gap:1px;background:#999;border:1px solid #999;border-radius:8px;overflow:hidden;margin-bottom:1.75rem;font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic',sans-serif">`;
+      html+=`<div style="background:#d8d5cf;padding:12px 14px;font-size:16px;font-weight:800;color:#111;display:flex;align-items:center">休み状況</div>`;
+      days.forEach((d,ni)=>{
+        const daykey=dkey(weekIdx,ni);
+        const dow=d.getDay();
+        const isWeekend=dow===0||dow===6;
+        const bg=isWeekend?'#ede9e2':'#fff';
+        const dowColor=dow===0?'#8B0000':dow===6?'#0A3A7A':'#111';
+        const allPeople=[...MEMBERS,SETO];
+        const absentList=allPeople.filter(m=>isAbsent(daykey,m));
+        html+=`<div style="background:${bg};padding:10px 8px">`;
+        html+=`<div style="font-size:16px;font-weight:800;color:${dowColor};line-height:1.5">${DAYS_JP[dow]}<br>${d.getMonth()+1}/${d.getDate()}</div>`;
+        html+=`<div style="margin-top:8px">`;
+        if(absentList.length===0){
+          html+=`<div style="font-size:14px;color:#999;font-weight:600">休みなし</div>`;
+        } else {
+          absentList.forEach(m=>{
+            const isSeto=m===SETO;
+            html+=`<div style="font-size:15px;font-weight:800;color:${isSeto?'#6B4200':'#8B0000'};margin-bottom:4px;display:flex;align-items:center;gap:5px">
+              <span style="font-size:12px;background:${isSeto?'#FFE8A0':'#FFD0D0'};color:${isSeto?'#6B4200':'#8B0000'};border-radius:4px;padding:2px 7px;font-weight:700;white-space:nowrap">休み</span>${m}</div>`;
+          });
+        }
+        html+=`</div></div>`;
+      });
+      html+=`</div>`;
+      return html;
+    }
+
+    ea.innerHTML=`
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic',sans-serif;background:#f5f5f3;padding:2.5rem;min-width:1800px">
+      <div style="font-size:26px;font-weight:800;color:#111;margin-bottom:1.5rem">シフト管理 ／ ${label}</div>
+      <div style="font-size:18px;font-weight:800;color:#333;background:#d8d5cf;border-radius:8px;padding:9px 16px;display:inline-block;margin-bottom:12px">休み状況</div>
+      ${buildExportAbsenceHTML()}
+      <div style="font-size:18px;font-weight:800;color:#333;background:#d8d5cf;border-radius:8px;padding:9px 16px;display:inline-block;margin-bottom:12px">午前（〜11時）</div>
+      <div style="margin-bottom:2rem">${buildExportCalHTML('am',weekIdx)}</div>
+      <div style="font-size:18px;font-weight:800;color:#333;background:#d8d5cf;border-radius:8px;padding:9px 16px;display:inline-block;margin-bottom:12px">夕方（16〜18時）</div>
+      <div>${buildExportCalHTML('pm',weekIdx)}</div>
+    </div>`;
+    ea.style.visibility='visible';
+    await new Promise(r=>setTimeout(r,300));
+    const canvas=await html2canvas(ea,{scale:2,useCORS:true,backgroundColor:'#f5f5f3',logging:false,width:1800});
+    ea.style.visibility='hidden';
+    const link=document.createElement('a');
+    link.download=`シフト_${label.replace(/〜/,'-').replace(/\//g,'')}.png`;
+    link.href=canvas.toDataURL('image/png');link.click();
+  }catch(e){alert('画像の生成に失敗しました: '+e.message);}
+  overlay.className='loading-overlay';
+}
+
+loadFromLS();
+document.getElementById('week-label').textContent=getWeekLabel(weekIdx);
+
+if(myName){
+  document.getElementById('my-name-label').textContent=myName;
+  if(myName===ADMIN_NAME) document.getElementById('admin-login-btn').style.display='inline-flex';
+} else {
+  setTimeout(()=>showNameSelector(), 500);
+}
+
+// 月を現在の週に合わせる
+const firstDayOfWeek = getWeekDays(weekIdx)[0];
+currentYear  = firstDayOfWeek.getFullYear();
+currentMonth = firstDayOfWeek.getMonth();
+
+renderMonth();
+renderCalendar();
+
+if(GAS_URL && GAS_URL !== 'https://script.google.com/macros/s/AKfycbxAAg7BAs5EHjpBU-NszqCjdIf6oIss0FuXmJlIV-Jsls15ljjs7TtHe7jKsATqX6VG8w/exec'){
+  syncAbsencesFromGAS();
+}
+
+</script>
+</body>
+</html>
