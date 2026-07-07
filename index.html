@@ -293,7 +293,7 @@ function setSaveIndicator(ok,msg){
 
 // ===== GAS同期 =====
 async function gasRequest(params){
-  if(!GAS_URL||GAS_URL==='https://script.google.com/macros/s/AKfycbxAAg7BAs5EHjpBU-NszqCjdIf6oIss0FuXmJlIV-Jsls15ljjs7TtHe7jKsATqX6VG8w/exec') return null;
+  if(!GAS_URL||GAS_URL==='YOUR_GAS_URL_HERE') return null;
   try{
     const url=GAS_URL+'?'+new URLSearchParams(params);
     const res=await fetch(url);
@@ -302,7 +302,7 @@ async function gasRequest(params){
 }
 
 async function syncAbsencesFromGAS(){
-  if(!GAS_URL||GAS_URL==='https://script.google.com/macros/s/AKfycbxAAg7BAs5EHjpBU-NszqCjdIf6oIss0FuXmJlIV-Jsls15ljjs7TtHe7jKsATqX6VG8w/exec'){
+  if(!GAS_URL||GAS_URL==='YOUR_GAS_URL_HERE'){
     setSaveIndicator(true,'ローカル保存中');
     return;
   }
@@ -921,7 +921,7 @@ currentMonth = firstDayOfWeek.getMonth();
 renderMonth();
 renderCalendar();
 
-if(GAS_URL && GAS_URL !== 'https://script.google.com/macros/s/AKfycbxAAg7BAs5EHjpBU-NszqCjdIf6oIss0FuXmJlIV-Jsls15ljjs7TtHe7jKsATqX6VG8w/exec'){
+if(GAS_URL && GAS_URL !== 'YOUR_GAS_URL_HERE'){
   syncAbsencesFromGAS();
 }
 
