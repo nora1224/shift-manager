@@ -688,7 +688,7 @@ function buildExportCalHTML(period,w){
       const daykey=dkey(w,ni);const dow=d.getDay();const isWeekend=dow===0||dow===6;
       const assigned=getAssigned(daykey,period,tidx,ni);
       html+=`<div style="background:${isWeekend?wkndBg:cellBg};padding:8px 5px;border-top:1px solid #ccc">`;
-      MEMBERS.filter(m=>assigned.has(m)&&!isAbsent(daykey,m)).forEach(m=>{
+      [...MEMBERS,'本部担当者'].filter(m=>assigned.has(m)&&!isAbsent(daykey,m)).forEach(m=>{
         const isResponder=task.allMembers;
         const fs=isResponder?'15px':'19px';
         const pw=isResponder?'4px 9px':'5px 12px';
@@ -715,14 +715,14 @@ function buildCalHTML(period,w){
     days.forEach((d,ni)=>{
       const daykey=dkey(w,ni);const dow=d.getDay();const isWeekend=dow===0||dow===6;
       const assigned=getAssigned(daykey,period,tidx,ni);
+      // 表示はMEMBERS_WITH_HONBUで（本部担当者がONの時も表示される）
       const displayMembers=getBaseStaff({allMembers:true},ni,period);
+      const displayAll=[...new Set([...displayMembers,'本部担当者'])];
       const canEditCell = isAdmin;
       html+=`<div class="cc${isWeekend?' wknd':''}" ${canEditCell?`style="cursor:pointer" onclick="openCellModal(${daykey},'${period}',${tidx},${ni})" title="クリックして担当者を変更"`:'style="cursor:default"'}>`;
-      // ONの人と休み中の人だけ表示
       let hasChip=false;
-      displayMembers.forEach(m=>{
+      displayAll.forEach(m=>{
         const inA=assigned.has(m);const absent=isAbsent(daykey,m);
-        // 休みの人は表示しない、ONの人だけ表示
         if(!absent&&inA){
           html+=`<span class="chip on">${m}</span>`;hasChip=true;
         }
