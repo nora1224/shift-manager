@@ -292,13 +292,34 @@ function setSaveIndicator(ok,msg){
 }
 
 // ===== GAS同期 =====
+function gasRequestJSONP(params){
+  return new Promise((resolve)=>{
+    if(!GAS_URL||GAS_URL==='YOUR_GAS_URL_HERE'){resolve(null);return;}
+    const cbName='cb_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+    const timeout=setTimeout(()=>{
+      delete window[cbName];
+      const s=document.getElementById(cbName);
+      if(s)s.remove();
+      resolve(null);
+    },10000);
+    window[cbName]=(data)=>{
+      clearTimeout(timeout);
+      delete window[cbName];
+      const s=document.getElementById(cbName);
+      if(s)s.remove();
+      resolve(data);
+    };
+    const p={...params,callback:cbName};
+    const url=GAS_URL+'?'+new URLSearchParams(p);
+    const script=document.createElement('script');
+    script.id=cbName;
+    script.src=url;
+    script.onerror=()=>{clearTimeout(timeout);delete window[cbName];script.remove();resolve(null);};
+    document.head.appendChild(script);
+  });
+}
 async function gasRequest(params){
-  if(!GAS_URL||GAS_URL==='YOUR_GAS_URL_HERE') return null;
-  try{
-    const url=GAS_URL+'?'+new URLSearchParams(params);
-    const res=await fetch(url);
-    return await res.json();
-  }catch(e){return null;}
+  return gasRequestJSONP(params);
 }
 
 async function syncAbsencesFromGAS(){
@@ -453,7 +474,39 @@ function confirmReset(){
   }
 }
 
-let weekIdx=0;
+// デフォルト休み（曜日ベース）ni: 0=月,1=火,2=水,3=木,4=金,5=土,6=日
+const DEFAULT_ABSENCES = {
+  '瀬戸':    [1],       // 火
+  '岩田':    [4, 5],    // 金・土
+  'ガー':    [2, 3],    // 水・木
+  'タム':    [0, 1],    // 月・火
+  '太田':    [2, 3],    // 水・木
+};
+
+// 指定週にデフォルト休みを適用（既存データは上書きしない）
+function applyDefaultAbsences(w){
+  for(let ni=0;ni<7;ni++){
+    const daykey=dkey(w,ni);
+    Object.entries(DEFAULT_ABSENCES).forEach(([name,days])=>{
+      if(days.includes(ni)){
+        if(!absences[daykey]) absences[daykey]=new Set();
+        absences[daykey].add(name);
+      }
+    });
+  }
+}
+
+// 今日が何週目か計算してweekIdxを返す
+function calcCurrentWeekIdx(){
+  const today=new Date();
+  today.setHours(0,0,0,0);
+  const base=new Date(BASE_MON);
+  base.setHours(0,0,0,0);
+  const diff=Math.floor((today-base)/(1000*60*60*24*7));
+  return Math.max(0,diff);
+}
+
+let weekIdx=calcCurrentWeekIdx();
 let absences={};
 let overrides={};
 let currentPeriod='am';
@@ -835,6 +888,8 @@ function changeWeek(dir){
     }
   }
   weekIdx=n;
+  // 新しい週にデフォルト休みを適用（既存データは上書きしない）
+  applyDefaultAbsences(n);
   document.getElementById('week-label').textContent=getWeekLabel(weekIdx);
   saveToLS();renderAll();
 }
@@ -917,6 +972,10 @@ if(myName){
 const firstDayOfWeek = getWeekDays(weekIdx)[0];
 currentYear  = firstDayOfWeek.getFullYear();
 currentMonth = firstDayOfWeek.getMonth();
+
+// デフォルト休みを適用（今週・来週・再来週分）
+for(let i=0;i<4;i++) applyDefaultAbsences(weekIdx+i);
+saveToLS();
 
 renderMonth();
 renderCalendar();
